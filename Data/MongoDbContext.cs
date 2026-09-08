@@ -13,6 +13,9 @@ public class MongoDbContext
 
     public MongoDbContext(IOptions<MongoDbSettings> options)
     {
+        // var mongoUrl = builder.Configuration["ConnectionStrings:MongoDb"];
+        // var client = new MongoClient(mongoUrl);
+
         var settings = options.Value;
         var client = new MongoClient(settings.ConnectionString);
         _database = client.GetDatabase(settings.DatabaseName);
