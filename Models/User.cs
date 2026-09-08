@@ -1,14 +1,36 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-public class ShoppyItem
+namespace ShoppyApp.Models;
+
+public static class UserRoles
+{
+    public const string Customer = "Customer";
+    public const string Manager = "Manager";
+    public const string Admin = "Admin";
+}
+
+public class User
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string? Id { get; set; }
+    public string Id { get; set; } = string.Empty;
 
-    [BsonElement("Title")]
-    public string Title { get; set; } = null!;
+    [BsonElement("name")]
+    public string Name { get; set; } = string.Empty;
 
-    public bool IsCompleted { get; set; }
+    [BsonElement("email")]
+    public string Email { get; set; } = string.Empty;
+
+    [BsonElement("passwordHash")]
+    public string PasswordHash { get; set; } = string.Empty;
+
+    [BsonElement("role")]
+    public string Role { get; set; } = UserRoles.Customer;
+
+    [BsonElement("isActive")]
+    public bool IsActive { get; set; } = true;
+
+    [BsonElement("createdAt")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
