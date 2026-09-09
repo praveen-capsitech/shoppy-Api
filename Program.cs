@@ -1,18 +1,61 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using MongoDB.Driver;
 using ShoppyApp.Data;
 using ShoppyApp.Services;
 using ShoppyApp.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDb"));
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateOnBuild = true;
+    options.ValidateScopes = true;
+});
+
+builder.Services.AddOptions<MongoDbSettings>()
+    .Bind(builder.Configuration.GetSection("MongoDb"))
+    .Validate(settings => !string.IsNullOrWhiteSpace(settings.ConnectionString), "MongoDb:ConnectionString is required.")
+    .Validate(settings => !string.IsNullOrWhiteSpace(settings.DatabaseName), "MongoDb:DatabaseName is required.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<JwtSettings>()
+    .Bind(builder.Configuration.GetSection("Jwt"))
+    .Validate(settings => settings.Key.Length >= 32, "Jwt:Key must contain at least 32 characters.")
+    .Validate(settings => !string.IsNullOrWhiteSpace(settings.Issuer), "Jwt:Issuer is required.")
+    .Validate(settings => !string.IsNullOrWhiteSpace(settings.Audience), "Jwt:Audience is required.")
+    .Validate(settings => settings.ExpiresMinutes > 0, "Jwt:ExpiresMinutes must be greater than zero.")
+    .ValidateOnStart();
+
+// MongoDB Client + Database
+var mongoSettings = builder.Configuration
+    .GetSection("MongoDb")
+    .Get<MongoDbSettings>()
+    ?? throw new InvalidOperationException("MongoDB settings missing.");
+
+var mongoClient = new MongoClient(mongoSettings.ConnectionString);
+var mongoDatabase = mongoClient.GetDatabase(mongoSettings.DatabaseName);
+
+builder.Services.AddSingleton<IMongoClient>(mongoClient);
+builder.Services.AddSingleton<IMongoDatabase>(mongoDatabase);
+
+// MongoDB Context
 builder.Services.AddSingleton<MongoDbContext>();
-builder.Services.AddScoped<TokenService>();
-builder.Services.AddControllers();
+
+// Services
+builder.Services.AddSingleton<ProductSnapshotService>();
+builder.Services.AddSingleton<CartService>();
+builder.Services.AddSingleton<OrderService>();
+builder.Services.AddSingleton<TokenService>();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+
 
 builder.Services.AddCors(
     options => options.AddPolicy("Frontend", policy => policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod())

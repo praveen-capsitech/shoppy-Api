@@ -28,7 +28,9 @@ public class ProductsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Product>> Create(CreateProductRequest request)
     {
-        if (request.Price < 0 || request.Stock < 0) return BadRequest(new { message = "Price and stock cannot be negative." });
+        if (!IsValid(request.Name, request.Description, request.Category, request.ImageUrl, request.Price, request.Stock))
+            return BadRequest(new { message = "Product fields are invalid." });
+
         var product = new Product { Name = request.Name, Description = request.Description, Price = request.Price, Stock = request.Stock, Category = request.Category, ImageUrl = request.ImageUrl };
         await _db.Products.InsertOneAsync(product);
         return CreatedAtAction(nameof(Get), new { id = product.Id }, product);
@@ -38,12 +40,23 @@ public class ProductsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<ActionResult<Product>> Update(string id, UpdateProductRequest request)
     {
+        if (!IsValid(request.Name, request.Description, request.Category, request.ImageUrl, request.Price, request.Stock))
+            return BadRequest(new { message = "Product fields are invalid." });
+
         var update = Builders<Product>.Update
             .Set(x => x.Name, request.Name).Set(x => x.Description, request.Description).Set(x => x.Price, request.Price)
             .Set(x => x.Stock, request.Stock).Set(x => x.Category, request.Category).Set(x => x.ImageUrl, request.ImageUrl);
         var product = await _db.Products.FindOneAndUpdateAsync(x => x.Id == id, update, new FindOneAndUpdateOptions<Product> { ReturnDocument = ReturnDocument.After });
         return product is null ? NotFound() : Ok(product);
     }
+
+    private static bool IsValid(string name, string description, string category, string imageUrl, decimal price, int stock) =>
+        !string.IsNullOrWhiteSpace(name) && name.Length <= 200 &&
+        !string.IsNullOrWhiteSpace(description) && description.Length <= 2000 &&
+        !string.IsNullOrWhiteSpace(category) && category.Length <= 100 &&
+        !string.IsNullOrWhiteSpace(imageUrl) && imageUrl.Length <= 2000 &&
+        Uri.TryCreate(imageUrl, UriKind.Absolute, out _) &&
+        price >= 0 && stock >= 0;
 
     [Authorize(Roles = "Manager,Admin")]
     [HttpDelete("{id}")]

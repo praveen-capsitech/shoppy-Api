@@ -19,7 +19,11 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) || request.Password.Length < 6)
+        if (request is null ||
+            string.IsNullOrWhiteSpace(request.Name) ||
+            string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Password) ||
+            request.Password.Length < 6)
             return BadRequest(new { message = "Name, email and a password of at least 6 characters are required." });
 
         var email = request.Email.Trim().ToLowerInvariant();
@@ -27,13 +31,24 @@ public class AuthController : ControllerBase
         if (exists) return Conflict(new { message = "An account with this email already exists." });
 
         var user = new User { Name = request.Name.Trim(), Email = email, PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), Role = UserRoles.Customer };
-        await _db.Users.InsertOneAsync(user);
+        try
+        {
+            await _db.Users.InsertOneAsync(user);
+        }
+        catch (MongoWriteException exception) when (exception.WriteError?.Code == 11000)
+        {
+            return Conflict(new { message = "An account with this email already exists." });
+        }
+
         return Ok(ToResponse(user));
     }
 
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
+        if (request is null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { message = "Email and password are required." });
+
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.Find(x => x.Email == email).FirstOrDefaultAsync();
         if (user is null || !user.IsActive || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))

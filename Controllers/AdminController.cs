@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using System.Security.Claims;
 using ShoppyApp.Data;
 using ShoppyApp.Models;
 
@@ -26,15 +27,47 @@ public class AdminController : ControllerBase
     {
         var valid = new[] { UserRoles.Customer, UserRoles.Manager, UserRoles.Admin };
         if (!valid.Contains(request.Role)) return BadRequest(new { message = "Invalid role." });
-        var result = await _db.Users.UpdateOneAsync(x => x.Id == id, Builders<User>.Update.Set(x => x.Role, request.Role));
+
+        var target = await _db.Users.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (target is null) return NotFound();
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (target.Id == currentUserId && target.Role == UserRoles.Admin && request.Role != UserRoles.Admin)
+            return Conflict(new { message = "You cannot remove your own administrator role." });
+
+        if (target.Role == UserRoles.Admin && request.Role != UserRoles.Admin && target.IsActive && await IsLastActiveAdminAsync(target.Id))
+            return Conflict(new { message = "At least one active administrator is required." });
+
+        var result = await _db.Users.UpdateOneAsync(
+            x => x.Id == id && x.Role == target.Role,
+            Builders<User>.Update.Set(x => x.Role, request.Role));
         return result.MatchedCount == 0 ? NotFound() : NoContent();
     }
 
     [HttpPut("users/{id}/status")]
     public async Task<IActionResult> ChangeStatus(string id, [FromBody] ChangeStatusRequest request)
     {
-        var result = await _db.Users.UpdateOneAsync(x => x.Id == id, Builders<User>.Update.Set(x => x.IsActive, request.IsActive));
+        var target = await _db.Users.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (target is null) return NotFound();
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (target.Id == currentUserId && !request.IsActive)
+            return Conflict(new { message = "You cannot deactivate your own account." });
+
+        if (target.Role == UserRoles.Admin && target.IsActive && !request.IsActive && await IsLastActiveAdminAsync(target.Id))
+            return Conflict(new { message = "At least one active administrator is required." });
+
+        var result = await _db.Users.UpdateOneAsync(
+            x => x.Id == id && x.IsActive == target.IsActive,
+            Builders<User>.Update.Set(x => x.IsActive, request.IsActive));
         return result.MatchedCount == 0 ? NotFound() : NoContent();
+    }
+
+    private async Task<bool> IsLastActiveAdminAsync(string excludedId)
+    {
+        var activeAdminCount = await _db.Users.CountDocumentsAsync(
+            x => x.Role == UserRoles.Admin && x.IsActive && x.Id != excludedId);
+        return activeAdminCount == 0;
     }
 }
 public record ChangeRoleRequest(string Role);
