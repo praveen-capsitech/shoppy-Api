@@ -26,11 +26,15 @@ public class AuthController : ControllerBase
             request.Password.Length < 6)
             return BadRequest(new { message = "Name, email and a password of at least 6 characters are required." });
 
+        var role = string.IsNullOrWhiteSpace(request.Role) ? UserRoles.Customer : request.Role.Trim();
+        if (role is not UserRoles.Customer and not UserRoles.Manager)
+            return BadRequest(new { message = "A new account can only be registered as a customer or manager." });
+
         var email = request.Email.Trim().ToLowerInvariant();
         var exists = await _db.Users.Find(x => x.Email == email).AnyAsync();
         if (exists) return Conflict(new { message = "An account with this email already exists." });
 
-        var user = new User { Name = request.Name.Trim(), Email = email, PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), Role = UserRoles.Customer };
+        var user = new User { Name = request.Name.Trim(), Email = email, PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), Role = role };
         try
         {
             await _db.Users.InsertOneAsync(user);
