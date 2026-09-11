@@ -34,7 +34,14 @@ public class AuthController : ControllerBase
         var exists = await _db.Users.Find(x => x.Email == email).AnyAsync();
         if (exists) return Conflict(new { message = "An account with this email already exists." });
 
-        var user = new User { Name = request.Name.Trim(), Email = email, PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), Role = role };
+        var user = new User
+        {
+            Name = request.Name.Trim(),
+            Email = email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Role = role,
+            IsActive = role != UserRoles.Manager
+        };
         try
         {
             await _db.Users.InsertOneAsync(user);
@@ -43,6 +50,9 @@ public class AuthController : ControllerBase
         {
             return Conflict(new { message = "An account with this email already exists." });
         }
+
+        if (role == UserRoles.Manager)
+            return Accepted(new { message = "Your manager account was created and is awaiting admin approval." });
 
         return Ok(ToResponse(user));
     }
@@ -55,8 +65,12 @@ public class AuthController : ControllerBase
 
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.Find(x => x.Email == email).FirstOrDefaultAsync();
-        if (user is null || !user.IsActive || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid email or password." });
+        if (!user.IsActive)
+            return Unauthorized(new { message = user.Role == UserRoles.Manager
+                ? "Your manager account is awaiting admin approval."
+                : "Your account is disabled." });
         return Ok(ToResponse(user));
     }
 
