@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using System.Security.Claims;
 using ShoppyApp.Data;
 using ShoppyApp.DTOs;
 using ShoppyApp.Models;
@@ -17,6 +18,17 @@ public class ProductsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Product>>> GetAll() => Ok(await _db.Products.Find(_ => true).SortByDescending(x => x.CreatedAt).ToListAsync());
 
+    [Authorize(Roles = "Manager,Admin")]
+    [HttpGet("managed")]
+    public async Task<ActionResult<IEnumerable<Product>>> GetManaged()
+    {
+        var filter = User.IsInRole("Admin")
+            ? Builders<Product>.Filter.Empty
+            : Builders<Product>.Filter.Eq(x => x.OwnerId, CurrentUserId);
+
+        return Ok(await _db.Products.Find(filter).SortByDescending(x => x.CreatedAt).ToListAsync());
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<Product>> Get(string id)
     {
@@ -31,7 +43,7 @@ public class ProductsController : ControllerBase
         if (!IsValid(request.Name, request.Description, request.Category, request.ImageUrl, request.Price, request.Stock))
             return BadRequest(new { message = "Product fields are invalid." });
 
-        var product = new Product { Name = request.Name, Description = request.Description, Price = request.Price, Stock = request.Stock, Category = request.Category, ImageUrl = request.ImageUrl };
+        var product = new Product { OwnerId = CurrentUserId, Name = request.Name, Description = request.Description, Price = request.Price, Stock = request.Stock, Category = request.Category, ImageUrl = request.ImageUrl };
         await _db.Products.InsertOneAsync(product);
         return CreatedAtAction(nameof(Get), new { id = product.Id }, product);
     }
@@ -43,11 +55,15 @@ public class ProductsController : ControllerBase
         if (!IsValid(request.Name, request.Description, request.Category, request.ImageUrl, request.Price, request.Stock))
             return BadRequest(new { message = "Product fields are invalid." });
 
+        var existing = await _db.Products.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (existing is null) return NotFound();
+        if (!User.IsInRole("Admin") && existing.OwnerId != CurrentUserId) return Forbid();
+
         var update = Builders<Product>.Update
             .Set(x => x.Name, request.Name).Set(x => x.Description, request.Description).Set(x => x.Price, request.Price)
             .Set(x => x.Stock, request.Stock).Set(x => x.Category, request.Category).Set(x => x.ImageUrl, request.ImageUrl);
         var product = await _db.Products.FindOneAndUpdateAsync(x => x.Id == id, update, new FindOneAndUpdateOptions<Product> { ReturnDocument = ReturnDocument.After });
-        return product is null ? NotFound() : Ok(product);
+        return Ok(product);
     }
 
     private static bool IsValid(string name, string description, string category, string imageUrl, decimal price, int stock) =>
@@ -62,7 +78,13 @@ public class ProductsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _db.Products.DeleteOneAsync(x => x.Id == id);
-        return result.DeletedCount == 0 ? NotFound() : NoContent();
+        var existing = await _db.Products.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (existing is null) return NotFound();
+        if (!User.IsInRole("Admin") && existing.OwnerId != CurrentUserId) return Forbid();
+
+        await _db.Products.DeleteOneAsync(x => x.Id == id);
+        return NoContent();
     }
+
+    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 }
