@@ -4,10 +4,6 @@ using ShoppyApp.Models;
 
 namespace ShoppyApp.Services;
 
-/*
- * Keep product access isolated here so the cart/order feature can be adapted
- * to the Product model already present in your ShoppyApp.
- */
 public sealed class ProductSnapshotService
 {
     private readonly IMongoCollection<Product> _products;

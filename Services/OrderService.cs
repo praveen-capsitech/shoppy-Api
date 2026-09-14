@@ -166,24 +166,13 @@ public sealed class OrderService
 
         try
         {
-            var result = await _orders.ReplaceOneAsync(
+            var result = await _orders.UpdateOneAsync(
                 session,
                 x => x.Id == id && x.UserId == userId && x.Status == order.Status,
-                new Order
-                {
-                    Id = order.Id,
-                    UserId = order.UserId,
-                    Items = order.Items,
-                    Subtotal = order.Subtotal,
-                    DeliveryCharge = order.DeliveryCharge,
-                    TotalAmount = order.TotalAmount,
-                    PaymentMethod = order.PaymentMethod,
-                    Status = OrderStatus.Cancelled,
-                    StockReserved = order.StockReserved,
-                    ShippingAddress = order.ShippingAddress,
-                    CreatedAt = order.CreatedAt,
-                    UpdatedAt = DateTime.UtcNow
-                });
+                Builders<Order>.Update
+                    .Set(x => x.Status, OrderStatus.Cancelled)
+                    .Set(x => x.StockReserved, false)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow));
 
             if (result.ModifiedCount == 0)
                 throw new InvalidOperationException("The order changed. Please retry.");
@@ -195,6 +184,7 @@ public sealed class OrderService
             }
 
             order.Status = OrderStatus.Cancelled;
+            order.StockReserved = false;
             order.UpdatedAt = DateTime.UtcNow;
             await session.CommitTransactionAsync();
         }
@@ -209,7 +199,14 @@ public sealed class OrderService
 
     private static bool IsValidTransition(OrderStatus current, OrderStatus next)
     {
-        return Enum.IsDefined(next);
+        return current switch
+        {
+            OrderStatus.Pending => next is OrderStatus.Confirmed or OrderStatus.Cancelled,
+            OrderStatus.Confirmed => next is OrderStatus.Processing or OrderStatus.Cancelled,
+            OrderStatus.Processing => next == OrderStatus.Shipped,
+            OrderStatus.Shipped => next == OrderStatus.Delivered,
+            _ => false
+        };
     }
 
     private static void ValidateAddress(ShippingAddressRequest a)

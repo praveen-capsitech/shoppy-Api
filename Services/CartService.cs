@@ -66,10 +66,7 @@ public sealed class CartService
         cart.UpdatedAt = DateTime.UtcNow;
         var originalVersion = cart.Version;
         cart.Version++;
-        await _carts.ReplaceOneAsync(
-            x => x.UserId == userId && x.Version == originalVersion,
-            cart,
-            new ReplaceOptions { IsUpsert = true });
+        await SaveCartAsync(userId, cart, originalVersion);
 
         return Map(cart);
     }
@@ -95,10 +92,7 @@ public sealed class CartService
         cart.UpdatedAt = DateTime.UtcNow;
         var originalVersion = cart.Version;
         cart.Version++;
-        var result = await _carts.ReplaceOneAsync(
-            x => x.UserId == userId && x.Version == originalVersion, cart);
-        if (result.ModifiedCount == 0)
-            throw new InvalidOperationException("The cart changed. Please retry.");
+        await SaveCartAsync(userId, cart, originalVersion);
 
         return Map(cart);
     }
@@ -112,10 +106,7 @@ public sealed class CartService
         cart.UpdatedAt = DateTime.UtcNow;
         var originalVersion = cart.Version;
         cart.Version++;
-        await _carts.ReplaceOneAsync(
-            x => x.UserId == userId && x.Version == originalVersion,
-            cart,
-            new ReplaceOptions { IsUpsert = true });
+        await SaveCartAsync(userId, cart, originalVersion);
 
         return Map(cart);
     }
@@ -123,6 +114,17 @@ public sealed class CartService
     public async Task ClearAsync(string userId)
     {
         await _carts.DeleteOneAsync(x => x.UserId == userId);
+    }
+
+    private async Task SaveCartAsync(string userId, Cart cart, long originalVersion)
+    {
+        var result = await _carts.ReplaceOneAsync(
+            x => x.UserId == userId && x.Version == originalVersion,
+            cart,
+            new ReplaceOptions { IsUpsert = true });
+
+        if (result.ModifiedCount == 0 && result.UpsertedId is null)
+            throw new InvalidOperationException("The cart changed. Please retry.");
     }
 
     private static CartResponse Map(Cart cart)
