@@ -55,11 +55,11 @@ public sealed class OrderController : ControllerBase
     }
 
     [HttpGet("manage")]
-    [Authorize(Roles = "Admin,Manager,Customer")]
+    [Authorize(Roles = "Admin")]
     public Task<IReadOnlyList<OrderResponse>> Manage() => _service.GetAllAsync();
 
     [HttpPatch("manage/{id}/status")]
-    [Authorize(Roles = "Admin,Manager,Customer")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<OrderResponse>> UpdateStatus(
         string id, UpdateOrderStatusRequest request)
     {
