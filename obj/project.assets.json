@@ -1388,11 +1388,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Praveen-Capsitech\\ShoppyApp\\backend\\ShoppyApp.csproj",
+      "projectUniqueName": "C:\\Users\\CT_USER\\Desktop\\ShoppyApp\\backend\\ShoppyApp.csproj",
       "projectName": "ShoppyApp",
-      "projectPath": "D:\\Praveen-Capsitech\\ShoppyApp\\backend\\ShoppyApp.csproj",
+      "projectPath": "C:\\Users\\CT_USER\\Desktop\\ShoppyApp\\backend\\ShoppyApp.csproj",
       "packagesPath": "C:\\Users\\CT_USER\\.nuget\\packages\\",
-      "outputPath": "D:\\Praveen-Capsitech\\ShoppyApp\\backend\\obj\\",
+      "outputPath": "C:\\Users\\CT_USER\\Desktop\\ShoppyApp\\backend\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
