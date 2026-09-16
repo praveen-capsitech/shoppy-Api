@@ -43,6 +43,7 @@ public class AuthController : ControllerBase
             Role = role,
             IsActive = role != UserRoles.Manager
         };
+
         try
         {
             await _database.Users.InsertOneAsync(user);
@@ -65,9 +66,11 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "Email and password are required." });
 
         var email = request.Email.Trim().ToLowerInvariant();
+
         var user = await _database.Users.Find(item => item.Email == email).FirstOrDefaultAsync();
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid email or password." });
+
         if (!user.IsActive)
         {
             var message = user.Role == UserRoles.Manager
@@ -86,6 +89,7 @@ public class AuthController : ControllerBase
     {
         var id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (id is null) return Unauthorized();
+
         var user = await _database.Users.Find(item => item.Id == id).FirstOrDefaultAsync();
         if (user is null || !user.IsActive) return Unauthorized();
         return Ok(ToResponse(user));

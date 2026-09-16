@@ -8,7 +8,7 @@ namespace ShoppyApp.Controllers;
 
 [ApiController]
 [Route("api/cart")]
-[Authorize(Roles = "Customer")]
+[Authorize(Roles = "Customer,Manager,Admin")]
 public sealed class CartController : ControllerBase
 {
     private readonly CartService _service;

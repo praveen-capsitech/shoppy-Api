@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "IX1/NUqGKGU=",
+  "dgSpecHash": "U8BArVKw0qU=",
   "success": true,
-  "projectFilePath": "D:\\Praveen-Capsitech\\ShoppyApp\\backend\\ShoppyApp.csproj",
+  "projectFilePath": "C:\\Users\\CT_USER\\Desktop\\ShoppyApp\\backend\\ShoppyApp.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\CT_USER\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\CT_USER\\.nuget\\packages\\dnsclient\\1.6.1\\dnsclient.1.6.1.nupkg.sha512",

@@ -36,7 +36,9 @@ public sealed class ProductSnapshotService
         var filter = Builders<Product>.Filter.And(
             Builders<Product>.Filter.Eq(x => x.Id, objectId.ToString()),
             Builders<Product>.Filter.Gte(x => x.Stock, quantity));
+
         var update = Builders<Product>.Update.Inc(x => x.Stock, -quantity);
+
         var result = await _products.UpdateOneAsync(session, filter, update);
         return result.ModifiedCount == 1;
     }

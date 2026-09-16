@@ -22,7 +22,7 @@ public sealed class OrderController : ControllerBase
         ?? throw new UnauthorizedAccessException();
 
     [HttpPost("cod")]
-    [Authorize(Roles = "Customer")]
+    [Authorize(Roles = "Customer,Manager,Admin")]
     public async Task<ActionResult<OrderResponse>> CreateCod(CreateCodOrderRequest request)
     {
         try { return Ok(await _service.CreateCodAsync(UserId, request)); }
@@ -31,11 +31,11 @@ public sealed class OrderController : ControllerBase
     }
 
     [HttpGet("mine")]
-    [Authorize(Roles = "Customer")]
+    [Authorize(Roles = "Customer,Manager,Admin")]
     public Task<IReadOnlyList<OrderResponse>> Mine() => _service.GetMineAsync(UserId);
 
     [HttpGet("mine/{id}")]
-    [Authorize(Roles = "Customer")]
+    [Authorize(Roles = "Customer,Manager,Admin")]
     public async Task<ActionResult<OrderResponse>> MineById(string id)
     {
         var order = await _service.GetMineByIdAsync(UserId, id);
@@ -43,7 +43,7 @@ public sealed class OrderController : ControllerBase
     }
 
     [HttpPost("mine/{id}/cancel")]
-    [Authorize(Roles = "Customer")]
+    [Authorize(Roles = "Customer,Manager,Admin")]
     public async Task<ActionResult<OrderResponse>> Cancel(string id)
     {
         try
@@ -55,11 +55,11 @@ public sealed class OrderController : ControllerBase
     }
 
     [HttpGet("manage")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,Customer")]
     public Task<IReadOnlyList<OrderResponse>> Manage() => _service.GetAllAsync();
 
     [HttpPatch("manage/{id}/status")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,Customer")]
     public async Task<ActionResult<OrderResponse>> UpdateStatus(
         string id, UpdateOrderStatusRequest request)
     {
