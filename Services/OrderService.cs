@@ -10,15 +10,17 @@ public sealed class OrderService
 
     private readonly IMongoCollection<Order> _orders;
     private readonly IMongoCollection<Cart> _carts;
-    private readonly ProductSnapshotService _products;
+    private readonly IMongoCollection<Product> _products;
+    private readonly ProductSnapshotService _productSnapshots;
     private readonly IMongoClient _client;
 
     public OrderService(IMongoDatabase database, IMongoClient client, ProductSnapshotService products)
     {
         _orders = database.GetCollection<Order>("orders");
         _carts = database.GetCollection<Cart>("carts");
+        _products = database.GetCollection<Product>("products");
         _client = client;
-        _products = products;
+        _productSnapshots = products;
 
         _orders.Indexes.CreateMany([
             new CreateIndexModel<Order>(Builders<Order>.IndexKeys.Ascending(x => x.UserId)),
@@ -44,11 +46,11 @@ public sealed class OrderService
 
             foreach (var cartItem in cart.Items)
             {
-                var product = await _products.GetAsync(cartItem.ProductId, session)
+                var product = await _productSnapshots.GetAsync(cartItem.ProductId, session)
                               ?? throw new InvalidOperationException(
                                   $"Product '{cartItem.ProductName}' is no longer available.");
 
-                if (!await _products.TryReserveAsync(product.Id, cartItem.Quantity, session))
+                if (!await _productSnapshots.TryReserveAsync(product.Id, cartItem.Quantity, session))
                     throw new InvalidOperationException(
                         $"Only the available stock of '{product.Name}' can be ordered.");
 
@@ -126,13 +128,37 @@ public sealed class OrderService
         return orders.Select(Map).ToList();
     }
 
-    public async Task<OrderResponse?> UpdateStatusAsync(string id, OrderStatus status)
+    public async Task<IReadOnlyList<OrderResponse>> GetManageAsync(string userId, bool isAdmin)
+    {
+        if (isAdmin)
+            return await GetAllAsync();
+
+        var ownedProductIds = await GetOwnedProductIdsAsync(userId);
+        if (ownedProductIds.Count == 0)
+            return [];
+
+        var orders = await _orders.Find(FilterDefinition<Order>.Empty)
+            .SortByDescending(x => x.CreatedAt)
+            .ToListAsync();
+
+        var managedOrders = orders
+            .Where(order => order.Items.Count > 0 &&
+                order.Items.All(item => ownedProductIds.Contains(item.ProductId)))
+            .ToList();
+
+        return managedOrders.Select(Map).ToList();
+    }
+
+    public async Task<OrderResponse?> UpdateStatusAsync(string id, OrderStatus status, string? userId = null, bool isAdmin = false)
     {
         if (!Enum.IsDefined(status))
             throw new ArgumentException("Invalid order status.");
 
         var order = await _orders.Find(x => x.Id == id).FirstOrDefaultAsync();
         if (order is null) return null;
+
+        if (!isAdmin && !string.IsNullOrWhiteSpace(userId) && !await CanManageOrderAsync(userId, order))
+            throw new UnauthorizedAccessException();
 
         if (!IsValidTransition(order.Status, status))
             throw new InvalidOperationException(
@@ -180,7 +206,7 @@ public sealed class OrderService
             if (order.StockReserved)
             {
                 foreach (var item in order.Items)
-                    await _products.ReleaseAsync(item.ProductId, item.Quantity, session);
+                    await _productSnapshots.ReleaseAsync(item.ProductId, item.Quantity, session);
             }
 
             order.Status = OrderStatus.Cancelled;
@@ -195,6 +221,25 @@ public sealed class OrderService
         }
 
         return Map(order);
+    }
+
+    private async Task<HashSet<string>> GetOwnedProductIdsAsync(string userId)
+    {
+        var productIds = await _products
+            .Find(x => x.OwnerId == userId)
+            .Project(x => x.Id)
+            .ToListAsync();
+
+        return productIds.ToHashSet(StringComparer.Ordinal);
+    }
+
+    private async Task<bool> CanManageOrderAsync(string userId, Order order)
+    {
+        if (order.Items.Count == 0)
+            return false;
+
+        var ownedProductIds = await GetOwnedProductIdsAsync(userId);
+        return order.Items.All(item => ownedProductIds.Contains(item.ProductId));
     }
 
     private static bool IsValidTransition(OrderStatus current, OrderStatus next)

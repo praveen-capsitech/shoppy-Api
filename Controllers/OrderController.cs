@@ -55,20 +55,32 @@ public sealed class OrderController : ControllerBase
     }
 
     [HttpGet("manage")]
-    [Authorize(Roles = "Admin")]
-    public Task<IReadOnlyList<OrderResponse>> Manage() => _service.GetAllAsync();
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> Manage()
+    {
+        try
+        {
+            var orders = await _service.GetManageAsync(UserId, User.IsInRole("Admin"));
+            return Ok(orders);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
 
     [HttpPatch("manage/{id}/status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Manager,Admin")]
     public async Task<ActionResult<OrderResponse>> UpdateStatus(
         string id, UpdateOrderStatusRequest request)
     {
         try
         {
-            var order = await _service.UpdateStatusAsync(id, request.Status);
+            var order = await _service.UpdateStatusAsync(id, request.Status, UserId, User.IsInRole("Admin"));
             return order is null ? NotFound() : Ok(order);
         }
         catch (ArgumentException e) { return BadRequest(new { message = e.Message }); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
         catch (InvalidOperationException e) { return Conflict(new { message = e.Message }); }
     }
 }
