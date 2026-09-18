@@ -8,10 +8,12 @@ namespace ShoppyApp.Services;
 public sealed class ProductService
 {
     private readonly IMongoCollection<Product> _products;
+    private readonly IMongoCollection<User> _users;
 
     public ProductService(MongoDbContext database)
     {
         _products = database.Products;
+        _users = database.Users;
     }
 
     public async Task<IReadOnlyList<Product>> GetAllAsync()
@@ -35,6 +37,25 @@ public sealed class ProductService
     public async Task<Product?> GetByIdAsync(string id)
     {
         return await _products.Find(product => product.Id == id).FirstOrDefaultAsync();
+    }
+
+    public async Task<ProductDetailsResponse?> GetDetailsAsync(string id)
+    {
+        var product = await GetByIdAsync(id);
+        if (product is null) return null;
+
+        var owner = await _users.Find(user => user.Id == product.OwnerId).FirstOrDefaultAsync();
+
+        return new ProductDetailsResponse(
+            product.Id,
+            product.Name,
+            product.Description,
+            product.Price,
+            product.Stock,
+            product.Category,
+            product.ImageUrl,
+            product.CreatedAt,
+            owner?.Name ?? "Unknown owner");
     }
 
     public async Task<Product> CreateAsync(string ownerId, CreateProductRequest request)
