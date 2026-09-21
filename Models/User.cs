@@ -33,4 +33,7 @@ public class User
 
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [BsonElement("favoriteProductIds")]
+    public HashSet<string> FavoriteProductIds { get; set; } = new();
 }
