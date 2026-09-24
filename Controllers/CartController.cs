@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShoppyApp.Binding;
 using ShoppyApp.DTOs;
 using ShoppyApp.Services;
 
@@ -24,7 +25,7 @@ public sealed class CartController : ControllerBase
     public Task<CartResponse> Get() => _service.GetAsync(UserId);
 
     [HttpPost("items")]
-    public async Task<ActionResult<CartResponse>> Add(AddToCartRequest request)
+    public async Task<ActionResult<CartResponse>> Add([FromBody] AddToCartRequest request)
     {
         try { return Ok(await _service.AddAsync(UserId, request)); }
         catch (KeyNotFoundException e) { return NotFound(new { message = e.Message }); }
@@ -33,7 +34,9 @@ public sealed class CartController : ControllerBase
     }
 
     [HttpPut("items/{productId}")]
-    public async Task<ActionResult<CartResponse>> Update(string productId, UpdateCartItemRequest request)
+    public async Task<ActionResult<CartResponse>> Update(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string productId,
+        [FromBody] UpdateCartItemRequest request)
     {
         try { return Ok(await _service.UpdateAsync(UserId, productId, request.Quantity)); }
         catch (KeyNotFoundException e) { return NotFound(new { message = e.Message }); }
@@ -41,7 +44,8 @@ public sealed class CartController : ControllerBase
     }
 
     [HttpDelete("items/{productId}")]
-    public Task<CartResponse> Remove(string productId) =>
+    public Task<CartResponse> Remove(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string productId) =>
         _service.RemoveAsync(UserId, productId);
 
     [HttpDelete]

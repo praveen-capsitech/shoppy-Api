@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using ShoppyApp.Binding;
 using ShoppyApp.Data;
 using ShoppyApp.Models;
 
@@ -24,7 +25,8 @@ public class FavoritesController : ControllerBase
     }
 
     [HttpPost("{productId}")]
-    public async Task<IActionResult> Add(string productId)
+    public async Task<IActionResult> Add(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string productId)
     {
         if (!await _database.Products.Find(product => product.Id == productId).AnyAsync())
             return NotFound(new { message = "Product not found." });
@@ -37,7 +39,8 @@ public class FavoritesController : ControllerBase
     }
 
     [HttpDelete("{productId}")]
-    public async Task<IActionResult> Remove(string productId)
+    public async Task<IActionResult> Remove(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string productId)
     {
         var result = await _database.Users.UpdateOneAsync(
             user => user.Id == CurrentUserId,

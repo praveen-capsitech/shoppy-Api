@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShoppyApp.Binding;
 using ShoppyApp.DTOs;
 using ShoppyApp.Models;
 using ShoppyApp.Services;
@@ -23,7 +24,7 @@ public sealed class OrderController : ControllerBase
 
     [HttpPost("cod")]
     [Authorize(Roles = "Customer,Manager,Admin")]
-    public async Task<ActionResult<OrderResponse>> CreateCod(CreateCodOrderRequest request)
+    public async Task<ActionResult<OrderResponse>> CreateCod([FromBody] CreateCodOrderRequest request)
     {
         try { return Ok(await _service.CreateCodAsync(UserId, request)); }
         catch (ArgumentException e) { return BadRequest(new { message = e.Message }); }
@@ -36,7 +37,8 @@ public sealed class OrderController : ControllerBase
 
     [HttpGet("mine/{id}")]
     [Authorize(Roles = "Customer,Manager,Admin")]
-    public async Task<ActionResult<OrderResponse>> MineById(string id)
+    public async Task<ActionResult<OrderResponse>> MineById(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id)
     {
         var order = await _service.GetMineByIdAsync(UserId, id);
         return order is null ? NotFound() : Ok(order);
@@ -44,7 +46,8 @@ public sealed class OrderController : ControllerBase
 
     [HttpPost("mine/{id}/cancel")]
     [Authorize(Roles = "Customer,Manager,Admin")]
-    public async Task<ActionResult<OrderResponse>> Cancel(string id)
+    public async Task<ActionResult<OrderResponse>> Cancel(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id)
     {
         try
         {
@@ -72,7 +75,8 @@ public sealed class OrderController : ControllerBase
     [HttpPatch("manage/{id}/status")]
     [Authorize(Roles = "Manager,Admin")]
     public async Task<ActionResult<OrderResponse>> UpdateStatus(
-        string id, UpdateOrderStatusRequest request)
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id,
+        [FromBody] UpdateOrderStatusRequest request)
     {
         try
         {

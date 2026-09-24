@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using ShoppyApp.Binding;
 using ShoppyApp.DTOs;
 using ShoppyApp.Models;
 using ShoppyApp.Services;
@@ -29,7 +30,8 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ProductDetailsResponse>> Get(string id)
+    public async Task<ActionResult<ProductDetailsResponse>> Get(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id)
     {
         var product = await _products.GetDetailsAsync(id);
         return product is null ? NotFound() : Ok(product);
@@ -37,7 +39,7 @@ public class ProductsController : ControllerBase
 
     [Authorize(Roles = "Manager,Admin")]
     [HttpPost]
-    public async Task<ActionResult<Product>> Create(CreateProductRequest request)
+    public async Task<ActionResult<Product>> Create([FromBody] CreateProductRequest request)
     {
         try
         {
@@ -52,7 +54,9 @@ public class ProductsController : ControllerBase
 
     [Authorize(Roles = "Manager,Admin")]
     [HttpPut("{id}")]
-    public async Task<ActionResult<Product>> Update(string id, UpdateProductRequest request)
+    public async Task<ActionResult<Product>> Update(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id,
+        [FromBody] UpdateProductRequest request)
     {
         try
         {
@@ -73,7 +77,8 @@ public class ProductsController : ControllerBase
 
     [Authorize(Roles = "Manager,Admin")]
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string id)
+    public async Task<IActionResult> Delete(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id)
     {
         try
         {

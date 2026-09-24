@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using System.Security.Claims;
+using ShoppyApp.Binding;
 using ShoppyApp.Data;
 using ShoppyApp.Models;
 
@@ -37,7 +38,9 @@ public class AdminController : ControllerBase
     }
 
     [HttpPut("users/{id}/role")]
-    public async Task<IActionResult> ChangeRole(string id, [FromBody] ChangeRoleRequest request)
+    public async Task<IActionResult> ChangeRole(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id,
+        [FromBody] ChangeRoleRequest request)
     {
         if (!IsValidRole(request.Role))
             return BadRequest(new { message = "Invalid role." });
@@ -63,7 +66,9 @@ public class AdminController : ControllerBase
     }
 
     [HttpPut("users/{id}/status")]
-    public async Task<IActionResult> ChangeStatus(string id, [FromBody] ChangeStatusRequest request)
+    public async Task<IActionResult> ChangeStatus(
+        [FromRoute, ModelBinder(BinderType = typeof(MongoIdModelBinder))] string id,
+        [FromBody] ChangeStatusRequest request)
     {
         var target = await _database.Users.Find(user => user.Id == id).FirstOrDefaultAsync();
         if (target is null) return NotFound();

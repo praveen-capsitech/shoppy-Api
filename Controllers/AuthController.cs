@@ -22,7 +22,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+    public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
         if (!HasValidRegistrationDetails(request))
             return BadRequest(new { message = "Name, email and a password of at least 6 characters are required." });
@@ -60,7 +60,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
+    public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
     {
         if (!HasValidLoginDetails(request))
             return BadRequest(new { message = "Email and password are required." });
